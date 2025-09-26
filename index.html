@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pão com Ovo: Chef Edition + Minigame</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f4e2d8;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: #fff8dc;
+      border: 5px solid #8b4513;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: Arial;
+      font-size: 24px;
+      color: #8b4513;
+    }
+    #joystick {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+    }
+    #minigame {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 300px;
+      height: 100px;
+      background: #fff;
+      border: 3px solid #8b4513;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      font-family: Arial;
+    }
+    #bar {
+      width: 80%;
+      height: 20px;
+      background: #eee;
+      position: relative;
+      margin-top: 10px;
+    }
+    #indicator {
+      width: 20px;
+      height: 20px;
+      background: #ffcc00;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    button {
+      margin-top: 10px;
+      padding: 5px 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="score">Receitas: 0</div>
+  <canvas id="game" width="800" height="500"></canvas>
+  <div id="joystick"></div>
+
+  <div id="minigame">
+    <div>Quebre o ovo no momento certo!</div>
+    <div id="bar"><div id="indicator"></div></div>
+    <button onclick="quebrarOvo()">Quebrar!</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.js"></script>
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score');
+    const minigame = document.getElementById('minigame');
+    const indicator = document.getElementById('indicator');
+
+    const pao = { x: 100, y: 450, w: 60, h: 30, cor: '#deb887', vel: 6 };
+    const ovos = [];
+    const fogao = { x: 700, y: 400, w: 80, h: 60 };
+    let receitas = 0;
+    let dx = 0;
+    let ovoColetado = null;
+    let minigameAtivo = false;
+    let indicadorPos = 0;
+    let direcao = 1;
+
+    function criarOvo() {
+      const ovo = {
+        x: Math.random() * (canvas.width - 40) + 20,
+        y: -20,
+        vel: 3 + Math.random() * 2
+      };
+      ovos.push(ovo);
+    }
+
+    function desenharPao() {
+      ctx.fillStyle = pao.cor;
+      ctx.fillRect(pao.x, pao.y, pao.w, pao.h);
+    }
+
+    function desenharFogao() {
+      ctx.fillStyle = '#8b0000';
+      ctx.fillRect(fogao.x, fogao.y, fogao.w, fogao.h);
+      ctx.fillStyle = '#fff';
+      ctx.font = '16px Arial';
+      ctx.fillText('Fogão', fogao.x + 10, fogao.y + 35);
+    }
+
+    function desenharOvos() {
+      ovos.forEach(ovo => {
+        ctx.beginPath();
+        ctx.ellipse(ovo.x, ovo.y, 20, 14, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#fffaf0';
+        ctx.fill();
+        ctx.closePath();
+
+        ctx.beginPath();
+        ctx.arc(ovo.x, ovo.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fill();
+        ctx.closePath();
+      });
+
+      if (ovoColetado) {
+        ctx.beginPath();
+        ctx.ellipse(pao.x + pao.w / 2, pao.y, 20, 14, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#fffaf0';
+        ctx.fill();
+        ctx.closePath();
+
+        ctx.beginPath();
+        ctx.arc(pao.x + pao.w / 2, pao.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fill();
+        ctx.closePath();
+      }
+    }
+
+    function moverOvos() {
+      ovos.forEach((ovo, i) => {
+        ovo.y += ovo.vel;
+        if (
+          ovo.y + 14 > pao.y &&
+          ovo.x > pao.x &&
+          ovo.x < pao.x + pao.w &&
+          !ovoColetado
+        ) {
+          ovoColetado = ovos.splice(i, 1)[0];
+        } else if (ovo.y > canvas.height) {
+          ovos.splice(i, 1);
+        }
+      });
+    }
+
+    function prepararReceita() {
+      if (
+        ovoColetado &&
+        pao.x + pao.w > fogao.x &&
+        pao.x < fogao.x + fogao.w &&
+        pao.y + pao.h > fogao.y &&
+        !minigameAtivo
+      ) {
+        minigame.style.display = 'flex';
+        minigameAtivo = true;
+      }
+    }
+
+    function quebrarOvo() {
+      const centro = 120; // posição ideal
+      const tolerancia = 30;
+      if (Math.abs(indicadorPos - centro) < tolerancia) {
+        receitas += 3;
+      } else if (Math.abs(indicadorPos - centro) < tolerancia * 2) {
+        receitas += 2;
+      } else {
+        receitas += 1;
+      }
+      ovoColetado = null;
+      minigame.style.display = 'none';
+      minigameAtivo = false;
+    }
+
+    function atualizarPlacar() {
+      scoreDisplay.textContent = `Receitas: ${receitas}`;
+    }
+
+    function moverPao() {
+      pao.x += dx * pao.vel;
+      pao.x = Math.max(0, Math.min(canvas.width - pao.w, pao.x));
+    }
+
+    function desenhar() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      desenharPao();
+      desenharFogao();
+      desenharOvos();
+      atualizarPlacar();
+    }
+
+    function loop() {
+      desenhar();
+      moverPao();
+      moverOvos();
+      prepararReceita();
+      if (minigameAtivo) {
+        indicadorPos += direcao * 4;
+        if (indicadorPos > 240 || indicadorPos < 0) direcao *= -1;
+        indicator.style.left = indicadorPos + 'px';
+      }
+      requestAnimationFrame(loop);
+    }
+
+    setInterval(criarOvo, 1500);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') dx = -1;
+      if (e.key === 'ArrowRight') dx = 1;
+    });
+
+    document.addEventListener('keyup', () => {
+      dx = 0;
+    });
+
+    const joystick = nipplejs.create({
+      zone: document.getElementById('joystick'),
+      mode: 'static',
+      position: { left: '60px', bottom: '60px' },
+      color: 'white'
+    });
+
+    joystick.on('move', (evt, data) => {
+      if (data && data.vector) {
+        dx = data.vector.x;
+      }
+    });
+
+    joystick.on('end', () => {
+      dx = 0;
+    });
+
+    loop();
+  </script>
+</body>
+</html>
